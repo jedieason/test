@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>射龍門 ROI 計算機</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+        .field {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+        }
+        .buttons button {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        const totalPerNumber = 4;
+        const totalCards = 50;
+        const fixedCard = 7;
+        const totalGateCards = 10;
+
+        function calculateROI() {
+            let cardA = parseInt(document.getElementById("cardA").value);
+            let cardB = parseInt(document.getElementById("cardB").value);
+            let usedInnerCards = parseInt(document.getElementById("usedInnerCards").value);
+            let usedOuterCards = parseInt(document.getElementById("usedOuterCards").value);
+            let usedGateCards = parseInt(document.getElementById("usedGateCards").value);
+            let betChoice = document.querySelector('input[name="betChoice"]:checked') ? document.querySelector('input[name="betChoice"]:checked').value : null;
+
+            let roi = calculateRoiWithSeven(cardA, cardB, usedInnerCards, usedOuterCards, usedGateCards, betChoice);
+            document.getElementById("roiResult").innerText = "ROI: " + roi.toFixed(2) + "%";
+
+            updateLimits(cardA, cardB, usedInnerCards, usedOuterCards, usedGateCards);
+        }
+
+        function calculateRoiWithSeven(cardA, cardB, usedInnerCards, usedOuterCards, usedGateCards, betChoice) {
+            let remainingOtherCards, win, loseDouble, lose, expectedReturn, rangeCards;
+            let gateCards = totalGateCards;
+
+            if (cardA === cardB) {
+                remainingOtherCards = totalCards - usedInnerCards - usedOuterCards - usedGateCards;
+
+                if (betChoice === '小') {
+                    if (cardA > fixedCard) {
+                        win = ((cardA - 2) * totalPerNumber - usedInnerCards);
+                        loseDouble = gateCards - usedGateCards;
+                        lose = (totalPerNumber * (13 - cardA) - usedOuterCards);
+                    } else if (cardA < fixedCard) {
+                        win = ((cardA - 1) * totalPerNumber - usedInnerCards);
+                        loseDouble = gateCards - usedGateCards;
+                        lose = (totalPerNumber * (12 - cardA) - usedOuterCards);
+                    } else {
+                        win = 6 * totalPerNumber - usedInnerCards;
+                        loseDouble = gateCards - usedGateCards;
+                        lose = (totalPerNumber * 6 - usedOuterCards);
+                    }
+                } else if (betChoice === '大') {
+                    if (cardA < fixedCard) {
+                        win = ((12 - cardA) * totalPerNumber - usedInnerCards);
+                        loseDouble = gateCards - usedGateCards;
+                        lose = (totalPerNumber * (cardA - 1) - usedOuterCards);
+                    } else if (cardA > fixedCard) {
+                        win = ((13 - cardA) * totalPerNumber - usedInnerCards);
+                        loseDouble = gateCards - usedGateCards;
+                        lose = (totalPerNumber * (cardA - 2) - usedOuterCards);
+                    } else {
+                        win = 6 * totalPerNumber - usedInnerCards;
+                        loseDouble = gateCards - usedGateCards;
+                        lose = (totalPerNumber * 6 - usedOuterCards);
+                    }
+                } else {
+                    throw new Error("Invalid bet choice. Must be '大' or '小'.");
+                }
+
+                expectedReturn = ((win * 1) - (loseDouble * 2) - (lose * 1)) / remainingOtherCards;
+            } else {
+                if (cardA > cardB) {
+                    [cardA, cardB] = [cardB, cardA];
+                }
+
+                if (cardA < fixedCard && fixedCard < cardB) {
+                    rangeCards = cardB - cardA - 2;
+                } else {
+                    rangeCards = cardB - cardA - 1;
+                    if (cardA === fixedCard || cardB === fixedCard) {
+                        gateCards -= 4;
+                    }
+                }
+
+                let remainingInnerCards = (rangeCards * totalPerNumber) - usedInnerCards;
+                let remainingOuterCards = totalCards - (rangeCards * totalPerNumber) - gateCards - usedOuterCards;
+                let remainingGateCards = gateCards - usedGateCards;
+                remainingOtherCards = totalCards - usedInnerCards - usedOuterCards - usedGateCards;
+
+                expectedReturn = (remainingInnerCards - remainingOuterCards - remainingGateCards * 2) / remainingOtherCards;
+            }
+
+            return (expectedReturn) * 100;
+        }
+
+        function updateLimits(cardA, cardB, usedInnerCards, usedOuterCards, usedGateCards) {
+            let rangeCards;
+            let gateCards = totalGateCards;
+
+            if (cardA > cardB) {
+                [cardA, cardB] = [cardB, cardA];
+            }
+
+            if (cardA === cardB) {
+                rangeCards = 0;
+            } else if (cardA < fixedCard && fixedCard < cardB) {
+                rangeCards = cardB - cardA - 2;
+            } else {
+                rangeCards = cardB - cardA - 1;
+                if (cardA === fixedCard || cardB === fixedCard) {
+                    gateCards -= 4;
+                }
+            }
+
+            let maxInnerCards = rangeCards * totalPerNumber;
+            let maxOuterCards = totalCards - maxInnerCards - gateCards;
+            let maxGateCards = gateCards;
+
+            document.getElementById("usedInnerCards").max = maxInnerCards;
+            document.getElementById("usedOuterCards").max = maxOuterCards;
+            document.getElementById("usedGateCards").max = maxGateCards;
+        }
+
+        function incrementValue(id) {
+            let element = document.getElementById(id);
+            let value = parseInt(element.value);
+            let maxValue = parseInt(element.max);
+            if (value < maxValue) {
+                element.value = value + 1;
+                calculateROI();
+            }
+        }
+
+        function decrementValue(id) {
+            let element = document.getElementById(id);
+            let value = parseInt(element.value);
+            if (value > 0) {
+                element.value = value - 1;
+                calculateROI();
+            }
+        }
+
+        function updateBetOptions() {
+            let cardA = parseInt(document.getElementById("cardA").value);
+            let cardB = parseInt(document.getElementById("cardB").value);
+
+            if (cardA === cardB) {
+                document.getElementById("betOptions").style.display = "block";
+            } else {
+                document.getElementById("betOptions").style.display = "none";
+                let selectedBet = document.querySelector('input[name="betChoice"]:checked');
+                if (selectedBet) {
+                    selectedBet.checked = false;
+                }
+            }
+            calculateROI();
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>射龍門 ROI 計算機</h1>
+        <div class="field">
+            <label for="cardA">第一張門牌：</label>
+            <select id="cardA" onchange="updateBetOptions()">
+                <option value="1">A</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">J</option>
+                <option value="12">Q</option>
+                <option value="13">K</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="cardB">第二張門牌：</label>
+            <select id="cardB" onchange="updateBetOptions()">
+                <option value="1">A</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">J</option>
+                <option value="12">Q</option>
+                <option value="13">K</option>
+            </select>
+        </div>
+        <div class="field" id="betOptions" style="display: none;">
+            <label>賭大或賭小：</label>
+            <input type="radio" id="big" name="betChoice" value="大" onclick="calculateROI()">大
+            <input type="radio" id="small" name="betChoice" value="小" onclick="calculateROI()">小
+        </div>
+        <div class="field">
+            <label for="usedInnerCards">門內牌數量：</label>
+            <div class="buttons">
+                <button onclick="decrementValue('usedInnerCards')">-</button>
+                <input type="number" id="usedInnerCards" value="0" readonly>
+                <button onclick="incrementValue('usedInnerCards')">+</button>
+            </div>
+        </div>
+        <div class="field">
+            <label for="usedOuterCards">門外牌數量：</label>
+            <div class="buttons">
+                <button onclick="decrementValue('usedOuterCards')">-</button>
+                <input type="number" id="usedOuterCards" value="0" readonly>
+                <button onclick="incrementValue('usedOuterCards')">+</button>
+            </div>
+        </div>
+        <div class="field">
+            <label for="usedGateCards">門牌數量：</label>
+            <div class="buttons">
+                <button onclick="decrementValue('usedGateCards')">-</button>
+                <input type="number" id="usedGateCards" value="0" readonly>
+                <button onclick="incrementValue('usedGateCards')">+</button>
+            </div>
+        </div>
+        <div class="field">
+            <div id="roiResult">ROI: 0.00%</div>
+        </div>
+    </div>
+</body>
+</html>
